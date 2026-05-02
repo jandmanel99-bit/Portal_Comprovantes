@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal de Comprovantes</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center p-4">
+
+    <header class="w-full max-w-4xl flex justify-between items-center py-6">
+        <h1 class="text-2xl font-bold text-blue-800">Meus Recibos</h1>
+        <button id="btnLogout" class="hidden bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition">Sair</button>
+    </header>
+
+    <div id="loginSection" class="bg-white p-8 rounded-lg shadow-md w-full max-w-md mt-10">
+        <h2 class="text-xl font-semibold mb-6 text-center">Acesse sua conta</h2>
+        <input type="email" id="email" placeholder="Seu e-mail" class="w-full p-3 mb-4 border rounded outline-none focus:border-blue-500">
+        <input type="password" id="password" placeholder="Sua senha" class="w-full p-3 mb-6 border rounded outline-none focus:border-blue-500">
+        <button id="btnLogin" class="w-full bg-blue-700 text-white p-3 rounded font-bold hover:bg-blue-800 transition">Entrar</button>
+        <p id="loginError" class="text-red-500 text-sm mt-4 hidden text-center"></p>
+    </div>
+
+    <div id="dashboardSection" class="hidden w-full max-w-4xl bg-white p-6 rounded-lg shadow-md mt-6">
+        <h2 class="text-lg font-semibold mb-4">Seus Comprovantes Disponíveis</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-50 border-b">
+                        <th class="p-3 font-medium text-gray-600">Descrição</th>
+                        <th class="p-3 font-medium text-gray-600">Data</th>
+                        <th class="p-3 font-medium text-gray-600">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="listaComprovantes">
+                    </tbody>
+            </table>
+        </div>
+        <p id="noDataMessage" class="hidden text-center text-gray-500 mt-6">Nenhum comprovante encontrado para o seu usuário.</p>
+    </div>
+
+    <script>
+        // CONFIGURAÇÕES DO SUPABASE (Substitua pelos seus dados do Dashboard do Supabase)
+        const SUPABASE_URL = 'SUA_URL_AQUI';
+        const SUPABASE_KEY = 'SUA_KEY_ANON_AQUI';
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // ELEMENTOS DA TELA
+        const loginSection = document.getElementById('loginSection');
+        const dashboardSection = document.getElementById('dashboardSection');
+        const btnLogin = document.getElementById('btnLogin');
+        const btnLogout = document.getElementById('btnLogout');
+        const listaComprovantes = document.getElementById('listaComprovantes');
+
+        // FUNÇÃO DE LOGIN
+        btnLogin.onclick = async () => {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+            if (error) {
+                const errorMsg = document.getElementById('loginError');
+                errorMsg.innerText = "Erro ao acessar: " + error.message;
+                errorMsg.classList.remove('hidden');
+            } else {
+                carregarComprovantes();
+            }
+        };
+
+        // CARREGAR DADOS DO BANCO
+        async function carregarComprovantes() {
+            loginSection.classList.add('hidden');
+            dashboardSection.classList.remove('hidden');
+            btnLogout.classList.remove('hidden');
+
+            const { data: { user } } = await supabase.auth.getUser();
+
+            const { data: comprovantes, error } = await supabase
+                .from('comprovantes')
+                .select('*')
+                .order('data_emissao', { ascending: false });
+
+            if (comprovantes && comprovantes.length > 0) {
+                listaComprovantes.innerHTML = comprovantes.map(c => `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-3 text-gray-800">${c.descricao}</td>
+                        <td class="p-3 text-gray-600">${new Date(c.data_emissao).toLocaleDateString('pt-BR')}</td>
+                        <td class="p-3">
+                            <a href="${c.arquivo_url}" target="_blank" class="text-blue-600 font-medium hover:underline">Download PDF</a>
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                document.getElementById('noDataMessage').classList.remove('hidden');
+            }
+        }
+
+        // LOGOUT
+        btnLogout.onclick = async () => {
+            await supabase.auth.signOut();
+            window.location.reload();
+        };
+
+        // CHECAR SE JÁ ESTÁ LOGADO AO ABRIR
+        window.onload = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) carregarComprovantes();
+        };
+    </script>
+</body>
+</html>
