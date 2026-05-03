@@ -1,116 +1,113 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal de Comprovantes</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teste Supabase</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #f0f0f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .card { background: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+    h2 { margin-bottom: 24px; color: #333; text-align: center; }
+    input { width: 100%; padding: 12px; margin-bottom: 14px; border: 1px solid #ddd; border-radius: 5px; font-size: 1rem; }
+    button { width: 100%; padding: 13px; background: #2563eb; color: #fff; border: none; border-radius: 5px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+    button:hover { background: #1d4ed8; }
+    #status { margin-top: 16px; padding: 12px; border-radius: 5px; font-size: 0.9rem; display: none; text-align: center; }
+    #status.ok { background: #dcfce7; color: #166534; display: block; }
+    #status.err { background: #fee2e2; color: #991b1b; display: block; }
+    #userInfo { margin-top: 20px; padding: 12px; background: #f8fafc; border-radius: 5px; font-size: 0.85rem; color: #555; display: none; word-break: break-all; }
+    #btnLogout { margin-top: 12px; background: #ef4444; display: none; }
+    #btnLogout:hover { background: #dc2626; }
+  </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col items-center p-4">
+<body>
+  <div class="card">
+    <h2>🔐 Teste Supabase</h2>
 
-    <header class="w-full max-w-4xl flex justify-between items-center py-6">
-        <h1 class="text-2xl font-bold text-blue-800">Brenda PSI - Portal de Comprovantes</h1>
-        <button id="btnLogout" class="hidden bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition">Sair</button>
-    </header>
-
-    <div id="loginSection" class="bg-white p-8 rounded-lg shadow-md w-full max-w-md mt-10">
-        <h2 class="text-xl font-semibold mb-6 text-center">Acesse sua conta</h2>
-        <input type="email" id="email" placeholder="Seu e-mail" class="w-full p-3 mb-4 border rounded outline-none focus:border-blue-500">
-        <input type="password" id="password" placeholder="Sua senha" class="w-full p-3 mb-6 border rounded outline-none focus:border-blue-500">
-        <button id="btnLogin" class="w-full bg-blue-700 text-white p-3 rounded font-bold hover:bg-blue-800 transition">Entrar</button>
-        <p id="loginError" class="text-red-500 text-sm mt-4 hidden text-center"></p>
+    <div id="loginForm">
+      <input type="email" id="email" placeholder="E-mail" />
+      <input type="password" id="password" placeholder="Senha" />
+      <button id="btnLogin">Entrar</button>
     </div>
 
-    <div id="dashboardSection" class="hidden w-full max-w-4xl bg-white p-6 rounded-lg shadow-md mt-6">
-        <h2 class="text-lg font-semibold mb-4">Seus Comprovantes Disponíveis</h2>
-        <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-                <thead>
-                    <tr class="bg-gray-50 border-b">
-                        <th class="p-3 font-medium text-gray-600">Descrição</th>
-                        <th class="p-3 font-medium text-gray-600">Data</th>
-                        <th class="p-3 font-medium text-gray-600">Ações</th>
-                    </tr>
-                </thead>
-                <tbody id="listaComprovantes">
-                    <!-- Linhas inseridas via JavaScript -->
-                </tbody>
-            </table>
-        </div>
-        <p id="noDataMessage" class="hidden text-center text-gray-500 mt-6">Nenhum comprovante encontrado para o seu usuário.</p>
-    </div>
+    <div id="status"></div>
+    <div id="userInfo"></div>
+    <button id="btnLogout">Sair</button>
+  </div>
 
-    <script>
-        // CONFIGURAÇÕES DO SUPABASE
-        const SUPABASE_URL = 'https://nqkzjohgqjlzocieamxi.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_8qPe5Q0nGHBDW22GKBIJBA_EL12kLXU';
-        
-        // CORREÇÃO: Variável renomeada para clienteSupabase
-        const clienteSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  <script>
+    const SUPABASE_URL = 'https://nqkzjohgqjlzocieamxi.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_8qPe5Q0nGHBDW22GKBIJBA_EL12kLXU';
 
-        // ELEMENTOS DA TELA
-        const loginSection = document.getElementById('loginSection');
-        const dashboardSection = document.getElementById('dashboardSection');
-        const btnLogin = document.getElementById('btnLogin');
-        const btnLogout = document.getElementById('btnLogout');
-        const listaComprovantes = document.getElementById('listaComprovantes');
+    const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // FUNÇÃO DE LOGIN
-        btnLogin.onclick = async () => {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            
-            const { data, error } = await clienteSupabase.auth.signInWithPassword({ email, password });
+    const status   = document.getElementById('status');
+    const userInfo = document.getElementById('userInfo');
+    const btnLogin  = document.getElementById('btnLogin');
+    const btnLogout = document.getElementById('btnLogout');
+    const loginForm = document.getElementById('loginForm');
 
-            if (error) {
-                const errorMsg = document.getElementById('loginError');
-                errorMsg.innerText = "Erro ao acessar: " + error.message;
-                errorMsg.classList.remove('hidden');
-            } else {
-                carregarComprovantes();
-            }
-        };
+    function showStatus(msg, isError) {
+      status.textContent = msg;
+      status.className = isError ? 'err' : 'ok';
+    }
 
-        // CARREGAR DADOS DO BANCO
-        async function carregarComprovantes() {
-            loginSection.classList.add('hidden');
-            dashboardSection.classList.remove('hidden');
-            btnLogout.classList.remove('hidden');
+    btnLogin.addEventListener('click', async () => {
+      const email    = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
 
-            const { data: { user } } = await clienteSupabase.auth.getUser();
+      if (!email || !password) {
+        showStatus('Preencha e-mail e senha.', true);
+        return;
+      }
 
-            const { data: comprovantes, error } = await clienteSupabase
-                .from('comprovantes')
-                .select('*')
-                .order('data_emissao', { ascending: false });
+      btnLogin.textContent = 'Aguarde...';
+      btnLogin.disabled = true;
 
-            if (comprovantes && comprovantes.length > 0) {
-                listaComprovantes.innerHTML = comprovantes.map(c => `
-                    <tr class="border-b hover:bg-gray-50">
-                        <td class="p-3 text-gray-800">${c.descricao}</td>
-                        <td class="p-3 text-gray-600">${new Date(c.data_emissao).toLocaleDateString('pt-BR')}</td>
-                        <td class="p-3">
-                            <a href="${c.arquivo_url}" target="_blank" class="text-blue-600 font-medium hover:underline">Download PDF</a>
-                        </td>
-                    </tr>
-                `).join('');
-            } else {
-                document.getElementById('noDataMessage').classList.remove('hidden');
-            }
-        }
+      const { data, error } = await client.auth.signInWithPassword({ email, password });
 
-        // LOGOUT
-        btnLogout.onclick = async () => {
-            await clienteSupabase.auth.signOut();
-            window.location.reload();
-        };
+      btnLogin.textContent = 'Entrar';
+      btnLogin.disabled = false;
 
-        // CHECAR SE JÁ ESTÁ LOGADO AO ABRIR
-        window.onload = async () => {
-            const { data: { session } } = await clienteSupabase.auth.getSession();
-            if (session) carregarComprovantes();
-        };
-    </script>
+      if (error) {
+        showStatus('Erro: ' + error.message, true);
+        console.error('Supabase error:', error);
+        return;
+      }
+
+      // Login OK
+      showStatus('✅ Login realizado com sucesso!', false);
+      loginForm.style.display = 'none';
+      userInfo.style.display = 'block';
+      btnLogout.style.display = 'block';
+      userInfo.innerHTML = `
+        <strong>Utilizador autenticado:</strong><br>
+        ID: ${data.user.id}<br>
+        E-mail: ${data.user.email}<br>
+        Provider: ${data.user.app_metadata?.provider}
+      `;
+    });
+
+    btnLogout.addEventListener('click', async () => {
+      await client.auth.signOut();
+      window.location.reload();
+    });
+
+    // Verificar sessão existente
+    window.addEventListener('load', async () => {
+      const { data: { session } } = await client.auth.getSession();
+      if (session) {
+        showStatus('✅ Sessão activa detectada.', false);
+        loginForm.style.display = 'none';
+        userInfo.style.display = 'block';
+        btnLogout.style.display = 'block';
+        userInfo.innerHTML = `
+          <strong>Sessão activa:</strong><br>
+          E-mail: ${session.user.email}
+        `;
+      }
+    });
+  </script>
 </body>
 </html>
