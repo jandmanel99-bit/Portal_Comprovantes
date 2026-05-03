@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Teste Supabase</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, sans-serif; background: #f0f0f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
@@ -57,10 +57,7 @@
       const email    = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
 
-      if (!email || !password) {
-        showStatus('Preencha e-mail e senha.', true);
-        return;
-      }
+      if (!email || !password) { showStatus('Preencha e-mail e senha.', true); return; }
 
       btnLogin.textContent = 'Aguarde...';
       btnLogin.disabled = true;
@@ -76,7 +73,6 @@
         return;
       }
 
-      // Login OK
       showStatus('✅ Login realizado com sucesso!', false);
       loginForm.style.display = 'none';
       userInfo.style.display = 'block';
@@ -94,7 +90,6 @@
       window.location.reload();
     });
 
-    // Verificar sessão existente
     window.addEventListener('load', async () => {
       const { data: { session } } = await client.auth.getSession();
       if (session) {
@@ -102,10 +97,7 @@
         loginForm.style.display = 'none';
         userInfo.style.display = 'block';
         btnLogout.style.display = 'block';
-        userInfo.innerHTML = `
-          <strong>Sessão activa:</strong><br>
-          E-mail: ${session.user.email}
-        `;
+        userInfo.innerHTML = `<strong>Sessão activa:</strong><br>E-mail: ${session.user.email}`;
       }
     });
   </script>
