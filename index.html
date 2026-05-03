@@ -34,17 +34,20 @@
                     </tr>
                 </thead>
                 <tbody id="listaComprovantes">
-                    </tbody>
+                    <!-- Linhas inseridas via JavaScript -->
+                </tbody>
             </table>
         </div>
         <p id="noDataMessage" class="hidden text-center text-gray-500 mt-6">Nenhum comprovante encontrado para o seu usuário.</p>
     </div>
 
     <script>
-        // CONFIGURAÇÕES DO SUPABASE (Substitua pelos seus dados do Dashboard do Supabase)
+        // CONFIGURAÇÕES DO SUPABASE
         const SUPABASE_URL = 'https://nqkzjohgqjlzocieamxi.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_8qPe5QOnGHBDW22GKBIJBA_EL12kLXU';
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const SUPABASE_KEY = 'sb_publishable_8qPe5Q0nGHBDW22GKBIJBA_EL12kLXU';
+        
+        // CORREÇÃO: Variável renomeada para clienteSupabase
+        const clienteSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         // ELEMENTOS DA TELA
         const loginSection = document.getElementById('loginSection');
@@ -58,7 +61,7 @@
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             
-            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            const { data, error } = await clienteSupabase.auth.signInWithPassword({ email, password });
 
             if (error) {
                 const errorMsg = document.getElementById('loginError');
@@ -75,9 +78,9 @@
             dashboardSection.classList.remove('hidden');
             btnLogout.classList.remove('hidden');
 
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await clienteSupabase.auth.getUser();
 
-            const { data: comprovantes, error } = await supabase
+            const { data: comprovantes, error } = await clienteSupabase
                 .from('comprovantes')
                 .select('*')
                 .order('data_emissao', { ascending: false });
@@ -99,13 +102,13 @@
 
         // LOGOUT
         btnLogout.onclick = async () => {
-            await supabase.auth.signOut();
+            await clienteSupabase.auth.signOut();
             window.location.reload();
         };
 
         // CHECAR SE JÁ ESTÁ LOGADO AO ABRIR
         window.onload = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
+            const { data: { session } } = await clienteSupabase.auth.getSession();
             if (session) carregarComprovantes();
         };
     </script>
