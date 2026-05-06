@@ -1,1 +1,466 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Área do Cliente · Brenda Karolyne</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --green: #b8d4c0; --green-light: #dff0e5; --green-dark: #7aab8a;
+      --cream: #faf8f5; --white: #ffffff; --dark: #2c2c2c; --muted: #7a7a7a; --border: #e8e0dc;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Jost', sans-serif; background: var(--cream); color: var(--dark); min-height: 100vh; display: flex; flex-direction: column; }
 
+    .navbar { background: rgba(250,248,245,0.95); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); padding: 0 28px; height: 68px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+    .nav-logo { font-family: 'Cormorant Garamond', serif; font-size: 1.2rem; font-weight: 300; color: var(--dark); text-decoration: none; }
+    .nav-logo span { color: var(--green-dark); font-style: italic; }
+    .nav-right { display: flex; align-items: center; gap: 16px; }
+    .nav-back { font-size: 0.8rem; color: var(--muted); text-decoration: none; display: flex; align-items: center; gap: 6px; transition: color 0.2s; }
+    .nav-back:hover { color: var(--green-dark); }
+    #btnLogout { display: none; background: none; border: 1px solid var(--border); padding: 8px 18px; border-radius: 100px; font-family: 'Jost', sans-serif; font-size: 0.8rem; color: var(--muted); cursor: pointer; transition: all 0.2s; }
+    #btnLogout:hover { border-color: #e55; color: #e55; }
+
+    .screen { display: none; flex: 1; align-items: center; justify-content: center; padding: 40px 20px; }
+    .screen.active { display: flex; }
+
+    .card { background: var(--white); border-radius: 24px; padding: 48px 40px; width: 100%; max-width: 420px; box-shadow: 0 8px 40px rgba(0,0,0,0.06); border: 1px solid var(--border); }
+    .card-icon { font-size: 2rem; margin-bottom: 20px; }
+    .card h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.8rem; font-weight: 300; margin-bottom: 6px; }
+    .card .sub { font-size: 0.85rem; color: var(--muted); font-weight: 300; margin-bottom: 28px; }
+
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 0.73rem; font-weight: 500; letter-spacing: 0.8px; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+    .form-group input { width: 100%; padding: 13px 16px; border: 1px solid var(--border); border-radius: 12px; font-family: 'Jost', sans-serif; font-size: 0.95rem; color: var(--dark); background: var(--cream); transition: border-color 0.2s, box-shadow 0.2s; }
+    .form-group input:focus { outline: none; border-color: var(--green-dark); box-shadow: 0 0 0 3px rgba(122,171,138,0.12); background: var(--white); }
+
+    .btn-main { width: 100%; padding: 14px; background: var(--green-dark); color: var(--white); border: none; border-radius: 100px; font-family: 'Jost', sans-serif; font-size: 0.9rem; font-weight: 500; cursor: pointer; transition: background 0.2s; margin-top: 6px; }
+    .btn-main:hover { background: #5d9470; }
+    .btn-main:disabled { opacity: 0.6; cursor: not-allowed; }
+    .link-btn { background: none; border: none; color: var(--green-dark); font-family: 'Jost', sans-serif; font-size: 0.85rem; cursor: pointer; text-decoration: underline; margin-top: 16px; display: block; text-align: center; }
+
+    .msg { display: none; margin-top: 14px; padding: 12px 16px; border-radius: 10px; font-size: 0.85rem; text-align: center; }
+    .msg.ok { background: var(--green-light); color: var(--green-dark); display: block; }
+    .msg.err { background: #fef2f2; color: #c44; display: block; }
+
+    /* DASHBOARD */
+    #screenDash { align-items: flex-start; justify-content: flex-start; }
+    .dash-wrap { width: 100%; max-width: 900px; margin: 0 auto; padding: 36px 28px; }
+    .dash-header { margin-bottom: 28px; }
+    .dash-header h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.9rem; font-weight: 300; margin-bottom: 4px; }
+    .dash-header h2 span { color: var(--green-dark); font-style: italic; }
+    .dash-header p { font-size: 0.88rem; color: var(--muted); font-weight: 300; }
+
+    .table-card { background: var(--white); border-radius: 20px; border: 1px solid var(--border); overflow: hidden; }
+    .table-header { padding: 18px 24px; border-bottom: 1px solid var(--border); }
+    .table-header h3 { font-family: 'Cormorant Garamond', serif; font-size: 1.2rem; font-weight: 300; }
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: var(--green-light); }
+    th { padding: 12px 20px; font-size: 0.72rem; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--green-dark); text-align: left; }
+    td { padding: 15px 20px; font-size: 0.9rem; color: var(--dark); border-top: 1px solid var(--border); font-weight: 300; }
+    tr:hover td { background: var(--cream); }
+    .empty { text-align: center; padding: 48px; color: var(--muted); font-size: 0.9rem; }
+
+    .btn-pdf {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--green-light);
+      color: var(--green-dark);
+      border: none;
+      padding: 8px 16px;
+      border-radius: 100px;
+      font-family: 'Jost', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .btn-pdf:hover { background: var(--green); transform: translateY(-1px); }
+
+    footer { background: var(--dark); padding: 24px 28px; text-align: center; font-size: 0.78rem; color: rgba(255,255,255,0.25); margin-top: auto; }
+    footer span { color: var(--green); font-style: italic; }
+
+    @media (max-width: 600px) {
+      th:nth-child(3), td:nth-child(3) { display: none; }
+      .dash-wrap { padding: 24px 16px; }
+      .card { padding: 32px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="../" class="nav-logo">Brenda <span>Karolyne</span></a>
+  <div class="nav-right">
+    <a href="../" class="nav-back">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      Voltar ao site
+    </a>
+    <button id="btnLogout">Sair</button>
+  </div>
+</nav>
+
+<!-- LOGIN -->
+<div class="screen active" id="screenLogin">
+  <div class="card">
+    <div class="card-icon">🌸</div>
+    <h2>Área do Cliente</h2>
+    <p class="sub">Acesse seus comprovantes</p>
+    <div class="form-group"><label>E-mail</label><input type="email" id="loginEmail" placeholder="seu@email.com"></div>
+    <div class="form-group"><label>Senha</label><input type="password" id="loginSenha" placeholder="••••••••"></div>
+    <button class="btn-main" id="btnLogin">Entrar</button>
+    <button class="link-btn" id="linkEsqueci">Esqueci minha senha</button>
+    <div class="msg" id="loginMsg"></div>
+  </div>
+</div>
+
+<!-- RECUPERAR SENHA -->
+<div class="screen" id="screenRecuperar">
+  <div class="card">
+    <div class="card-icon">🔑</div>
+    <h2>Recuperar Senha</h2>
+    <p class="sub">Enviaremos um link para o seu e-mail</p>
+    <div class="form-group"><label>E-mail</label><input type="email" id="recEmail" placeholder="seu@email.com"></div>
+    <button class="btn-main" id="btnRecuperar">Enviar link de recuperação</button>
+    <button class="link-btn" id="linkVoltarLogin">Voltar ao login</button>
+    <div class="msg" id="recMsg"></div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="screen" id="screenDash">
+  <div class="dash-wrap">
+    <div class="dash-header">
+      <h2>Olá, <span id="nomeCliente">—</span> 👋</h2>
+      <p>Seus comprovantes disponíveis para download</p>
+    </div>
+    <div class="table-card">
+      <div class="table-header"><h3>Comprovantes</h3></div>
+      <table>
+        <thead>
+          <tr>
+            <th>Descrição</th>
+            <th>Data</th>
+            <th>Valor</th>
+            <th>Download</th>
+          </tr>
+        </thead>
+        <tbody id="tabelaComp"></tbody>
+      </table>
+      <div class="empty" id="emptyComp" style="display:none;">Nenhum comprovante disponível no momento. 🌱</div>
+    </div>
+  </div>
+</div>
+
+<footer>© 2026 · Brenda <span>Karolyne</span> da Silva · Psicóloga · CRP 02/31061</footer>
+
+<script>
+  const SUPABASE_URL = 'https://nqkzjohgqjlzocieamxi.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_8qPe5QOnGHBDW22GKBIJBA_EL12kLXU';
+  const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // Dados da psicóloga
+  const PSICOLOGA = {
+    nome: 'Brenda Karolyne da Silva',
+    crp: 'CRP 02/31061',
+    cpf: '711.418.924-99',
+    endereco: 'Av. General Mac Arthur, 418 - Sala 804',
+    cidade: 'Imbiribeira, Recife - PE · CEP 51160-280',
+    email: 'brendakarolyne23@gmail.com'
+  };
+
+  let dadosCliente = null;
+
+  function mostrarTela(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  function mostrarMsg(elId, texto, tipo) {
+    const el = document.getElementById(elId);
+    el.textContent = texto;
+    el.className = 'msg ' + tipo;
+  }
+
+  // LOGIN
+  document.getElementById('btnLogin').addEventListener('click', async () => {
+    const email = document.getElementById('loginEmail').value.trim();
+    const senha = document.getElementById('loginSenha').value;
+    const btn = document.getElementById('btnLogin');
+    btn.textContent = 'Aguarde...'; btn.disabled = true;
+    const { data, error } = await client.auth.signInWithPassword({ email, password: senha });
+    btn.textContent = 'Entrar'; btn.disabled = false;
+    if (error) { mostrarMsg('loginMsg', 'E-mail ou senha incorretos.', 'err'); return; }
+    carregarDashboard(data.user);
+  });
+
+  document.getElementById('linkEsqueci').addEventListener('click', () => mostrarTela('screenRecuperar'));
+  document.getElementById('linkVoltarLogin').addEventListener('click', () => mostrarTela('screenLogin'));
+
+  document.getElementById('btnRecuperar').addEventListener('click', async () => {
+    const email = document.getElementById('recEmail').value.trim();
+    const btn = document.getElementById('btnRecuperar');
+    if (!email) { mostrarMsg('recMsg', 'Insira o seu e-mail.', 'err'); return; }
+    btn.textContent = 'Enviando...'; btn.disabled = true;
+    const { error } = await client.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/clientes/'
+    });
+    btn.textContent = 'Enviar link de recuperação'; btn.disabled = false;
+    if (error) { mostrarMsg('recMsg', 'Erro ao enviar. Verifique o e-mail.', 'err'); return; }
+    mostrarMsg('recMsg', '✅ Link enviado! Verifique a sua caixa de entrada.', 'ok');
+  });
+
+  document.getElementById('btnLogout').addEventListener('click', async () => {
+    await client.auth.signOut();
+    window.location.reload();
+  });
+
+  // DASHBOARD
+  async function carregarDashboard(user) {
+    mostrarTela('screenDash');
+    document.getElementById('btnLogout').style.display = 'block';
+
+    const { data: clienteData } = await client
+      .from('clientes').select('id, nome, cpf, codigo').eq('email', user.email).limit(1);
+
+    if (!clienteData || clienteData.length === 0) {
+      document.getElementById('nomeCliente').textContent = user.email.split('@')[0];
+      document.getElementById('emptyComp').style.display = 'block';
+      return;
+    }
+
+    dadosCliente = clienteData[0];
+    document.getElementById('nomeCliente').textContent = dadosCliente.nome.split(' ')[0];
+
+    const { data: comps } = await client
+      .from('comprovantes').select('*').eq('cliente_id', dadosCliente.id)
+      .order('data_emissao', { ascending: false });
+
+    if (!comps || comps.length === 0) {
+      document.getElementById('emptyComp').style.display = 'block';
+      return;
+    }
+
+    document.getElementById('tabelaComp').innerHTML = comps.map((c, i) => `
+      <tr>
+        <td>${c.descricao || 'Serviço psicológico'}</td>
+        <td>${formatarData(c.data_emissao)}</td>
+        <td>${c.valor}</td>
+        <td>
+          <button class="btn-pdf" onclick="gerarPDF(${JSON.stringify(c).replace(/"/g, '&quot;')}, ${i + 1})">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Baixar PDF
+          </button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  // GERAR PDF
+  function gerarPDF(comp, numero) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+    const W = 210;
+    const margem = 20;
+    const largura = W - (margem * 2);
+
+    // ── CABEÇALHO ──
+    doc.setFillColor(61, 107, 82);
+    doc.rect(0, 0, W, 42, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('Brenda Karolyne da Silva', margem, 16);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(184, 212, 192);
+    doc.text('Psicóloga  ·  ' + PSICOLOGA.crp + '  ·  CPF ' + PSICOLOGA.cpf, margem, 23);
+
+    doc.setTextColor(180, 180, 180);
+    doc.setFontSize(8);
+    doc.text(PSICOLOGA.endereco + '  ·  ' + PSICOLOGA.cidade, margem, 30);
+    doc.text(PSICOLOGA.email, margem, 36);
+
+    // ── TÍTULO DO RECIBO ──
+    doc.setFillColor(184, 212, 192);
+    doc.rect(0, 42, W, 14, 'F');
+
+    doc.setTextColor(45, 74, 58);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('RECIBO DE PAGAMENTO', W / 2, 51, { align: 'center' });
+
+    // ── NÚMERO E DATA ──
+    let y = 72;
+
+    doc.setDrawColor(220, 220, 215);
+    doc.setFillColor(250, 248, 245);
+    doc.roundedRect(margem, y - 8, largura, 18, 3, 3, 'FD');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(122, 171, 138);
+    doc.text('Nº DO RECIBO', margem + 6, y);
+    doc.setTextColor(45, 74, 58);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    const numRecibo = String(numero).padStart(4, '0');
+    doc.text('REC-' + numRecibo + '-' + dadosCliente.codigo, margem + 6, y + 6);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(122, 171, 138);
+    doc.text('DATA DE EMISSÃO', W - margem - 60, y);
+    doc.setTextColor(45, 74, 58);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.text(formatarData(comp.data_emissao), W - margem - 60, y + 6);
+
+    // ── DADOS DO CLIENTE ──
+    y += 28;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(122, 171, 138);
+    doc.text('DADOS DO CLIENTE', margem, y);
+
+    y += 6;
+    doc.setDrawColor(220, 220, 215);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(margem, y - 4, largura, 26, 3, 3, 'FD');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text('NOME COMPLETO', margem + 6, y + 4);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.setTextColor(45, 74, 58);
+    doc.text(dadosCliente.nome, margem + 6, y + 11);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text('CPF', margem + 6, y + 18);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(45, 74, 58);
+    doc.text(dadosCliente.cpf || 'Não informado', margem + 6, y + 24);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text('CÓDIGO DO CLIENTE', margem + 80, y + 18);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(45, 74, 58);
+    doc.text(dadosCliente.codigo, margem + 80, y + 24);
+
+    // ── SERVIÇO ──
+    y += 36;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(122, 171, 138);
+    doc.text('DESCRIÇÃO DO SERVIÇO', margem, y);
+
+    y += 6;
+    doc.setDrawColor(220, 220, 215);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(margem, y - 4, largura, 16, 3, 3, 'FD');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(45, 74, 58);
+    doc.text(comp.descricao || 'Serviço psicológico', margem + 6, y + 5);
+
+    // ── VALOR ──
+    y += 26;
+    doc.setFillColor(61, 107, 82);
+    doc.roundedRect(margem, y - 4, largura, 22, 3, 3, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(184, 212, 192);
+    doc.text('VALOR TOTAL PAGO', margem + 6, y + 4);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.setTextColor(255, 255, 255);
+    doc.text(comp.valor, margem + 6, y + 14);
+
+    // ── DECLARAÇÃO LEGAL ──
+    y += 36;
+    doc.setDrawColor(184, 212, 192);
+    doc.setFillColor(223, 240, 229);
+    doc.roundedRect(margem, y - 4, largura, 28, 3, 3, 'FD');
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(60, 60, 60);
+    const declaracao = `Declaro, para os devidos fins, que recebi de ${dadosCliente.nome} a importância de ${comp.valor}, referente a ${comp.descricao || 'serviço psicológico'}, prestado na data de ${formatarData(comp.data_emissao)}, quitando integralmente o valor mencionado. Este documento serve como recibo e comprovante de pagamento.`;
+    const linhas = doc.splitTextToSize(declaracao, largura - 12);
+    doc.text(linhas, margem + 6, y + 4);
+
+    // ── ASSINATURA ──
+    y += 44;
+    const xAssinatura = W / 2;
+    doc.setDrawColor(61, 107, 82);
+    doc.setLineWidth(0.5);
+    doc.line(xAssinatura - 50, y, xAssinatura + 50, y);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(45, 74, 58);
+    doc.text(PSICOLOGA.nome, xAssinatura, y + 6, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(122, 171, 138);
+    doc.text(PSICOLOGA.crp + '  ·  CPF ' + PSICOLOGA.cpf, xAssinatura, y + 12, { align: 'center' });
+
+    // ── RODAPÉ ──
+    doc.setFillColor(245, 245, 245);
+    doc.rect(0, 282, W, 15, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(150, 150, 150);
+    doc.text('Documento gerado electronicamente em ' + new Date().toLocaleDateString('pt-BR') + ' · ' + PSICOLOGA.endereco + ' · ' + PSICOLOGA.cidade, W / 2, 290, { align: 'center' });
+
+    // SALVAR
+    const nomeArquivo = `Recibo-${dadosCliente.codigo}-${comp.data_emissao}.pdf`;
+    doc.save(nomeArquivo);
+  }
+
+  function formatarData(d) {
+    if (!d) return '—';
+    const [ano, mes, dia] = d.split('-');
+    return `${dia}/${mes}/${ano}`;
+  }
+
+  // SESSÃO ACTIVA
+  window.addEventListener('load', async () => {
+    const hash = window.location.hash;
+    if (hash.includes('type=recovery')) {
+      const params = new URLSearchParams(hash.replace('#', ''));
+      const accessToken = params.get('access_token');
+      if (accessToken) {
+        await client.auth.setSession({ access_token: accessToken, refresh_token: params.get('refresh_token') });
+        const novaSenha = prompt('Digite a sua nova senha (mínimo 6 caracteres):');
+        if (novaSenha) {
+          await client.auth.updateUser({ password: novaSenha });
+          alert('Senha actualizada! Faça login novamente.');
+          window.location.hash = '';
+        }
+      }
+    }
+    const { data: { session } } = await client.auth.getSession();
+    if (session) carregarDashboard(session.user);
+  });
+</script>
+<
