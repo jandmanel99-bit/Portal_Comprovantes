@@ -155,19 +155,23 @@
     }
 
     .hero-right {
-      background: var(--green-light);
-      position: relative;
-      overflow: hidden;
-    }
+  background: var(--green-light);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
     
   /* ─── Tamanho da Foto Iniaial - Identidade Visual ─── */
     .hero-photo {
-  width: 100%;
-  height: 100%;
+  width: 75%;
+  max-width: 380px;
+  aspect-ratio: 1/1;
   object-fit: cover;
   object-position: center top;
+  border-radius: 20px;
   display: block;
-  margin: 0 auto;
+}
 }
 
     .hero-photo-placeholder {
