@@ -494,4 +494,169 @@
   // ── MODAL COMPROVANTE MANUAL ──
   function abrirModalComp(clienteId, nome) {
     document.getElementById('modalClienteId').value = clienteId;
-    document.querySelector('
+    document.querySelector('#modalComp h3').textContent = `Adicionar Comprovante · ${nome}`;
+    document.getElementById('modalComp').classList.add('open');
+  }
+
+  document.getElementById('btnCancelarModal').addEventListener('click', () => {
+    document.getElementById('modalComp').classList.remove('open');
+  });
+
+  document.getElementById('btnSalvarComp').addEventListener('click', async () => {
+    const clienteId = document.getElementById('modalClienteId').value;
+    const descricao = document.getElementById('modalDescricao').value;
+    const data      = document.getElementById('modalData').value;
+    const valor     = document.getElementById('modalValor').value;
+
+    if (!data || !valor) { alert('Data e Valor são obrigatórios.'); return; }
+
+    const { error } = await client.from('comprovantes').insert({ cliente_id: clienteId, descricao, data_emissao: data, valor });
+    if (error) { alert('Erro ao salvar: ' + error.message); return; }
+
+    document.getElementById('modalComp').classList.remove('open');
+    document.getElementById('modalDescricao').value = '';
+    document.getElementById('modalData').value = '';
+    document.getElementById('modalValor').value = '';
+    await carregarTudo();
+  });
+
+  // ── DELETAR COMPROVANTE ──
+  async function deletarComprovante(id) {
+    if (!confirm('Remover este comprovante?')) return;
+    await client.from('comprovantes').delete().eq('id', id);
+    await carregarTudo();
+  }
+
+  // ── IMPORTAR CSV ──
+  const fileDrop = document.getElementById('fileDrop');
+  const fileInput = document.getElementById('fileInput');
+
+  fileDrop.addEventListener('click', () => fileInput.click());
+  fileDrop.addEventListener('dragover', e => { e.preventDefault(); fileDrop.classList.add('dragover'); });
+  fileDrop.addEventListener('dragleave', () => fileDrop.classList.remove('dragover'));
+  fileDrop.addEventListener('drop', e => {
+    e.preventDefault(); fileDrop.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) processarCSV(file);
+  });
+  fileInput.addEventListener('change', e => {
+    if (e.target.files[0]) processarCSV(e.target.files[0]);
+  });
+
+  function processarCSV(file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const lines = e.target.result.trim().split('\n');
+      const header = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
+      csvData = lines.slice(1).map(line => {
+        const cols = line.split(',').map(c => c.trim().replace(/"/g, ''));
+        const obj = {};
+        header.forEach((h, i) => obj[h] = cols[i] || '');
+        return obj;
+      }).filter(r => r.nome || r['nome']);
+
+      const tbody = document.getElementById('previewBody');
+      tbody.innerHTML = csvData.map(r => `
+        <tr>
+          <td>${r.nome || '—'}</td>
+          <td>${r.cpf || '—'}</td>
+          <td>${r.data || '—'}</td>
+          <td>${r.valor || '—'}</td>
+          <td>${r.descricao || '—'}</td>
+          <td><span class="badge badge-green">Pendente</span></td>
+        </tr>
+      `).join('');
+
+      document.getElementById('previewWrap').style.display = 'block';
+      document.getElementById('btnImportar').style.display = 'inline-block';
+      document.getElementById('progressMsg').style.display = 'none';
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
+
+  document.getElementById('btnImportar').addEventListener('click', async () => {
+    const progressMsg = document.getElementById('progressMsg');
+    const btn = document.getElementById('btnImportar');
+    btn.disabled = true;
+    btn.textContent = 'Importando...';
+
+    let ok = 0; let erros = 0;
+
+    for (const row of csvData) {
+      const nome     = (row.nome || '').trim();
+      const cpf      = (row.cpf || '').trim();
+      const email    = (row.email || '').trim();
+      const dataRaw  = (row.data || '').trim();
+      const valor    = (row.valor || '').trim();
+      const descricao = (row.descricao || '').trim();
+
+      if (!nome || !dataRaw || !valor) { erros++; continue; }
+
+      // Converter data dd/mm/aaaa → aaaa-mm-dd
+      const partes = dataRaw.split('/');
+      if (partes.length !== 3) { erros++; continue; }
+      const dataISO = `${partes[2].trim()}-${partes[1].trim()}-${partes[0].trim()}`;
+
+      // Buscar cliente pelo nome
+      let { data: clienteResult } = await client
+        .from('clientes')
+        .select('id')
+        .ilike('nome', nome)
+        .limit(1);
+
+      // Se não existe → criar automaticamente
+      if (!clienteResult || clienteResult.length === 0) {
+        const novoCliente = { nome };
+        if (cpf)   novoCliente.cpf   = cpf;
+        if (email) novoCliente.email = email;
+        // Se não tem email, usa um placeholder para não violar constraint
+        if (!email) novoCliente.email = nome.toLowerCase().replace(/\s+/g, '.') + '@pendente.com';
+        if (!cpf)   novoCliente.cpf  = '000.000.000-00';
+
+        const { data: criado, error: erroCriacao } = await client
+          .from('clientes')
+          .insert(novoCliente)
+          .select('id')
+          .limit(1);
+
+        if (erroCriacao || !criado || criado.length === 0) { erros++; continue; }
+        clienteResult = criado;
+      }
+
+      const { error } = await client.from('comprovantes').insert({
+        cliente_id: clienteResult[0].id,
+        data_emissao: dataISO,
+        valor,
+        descricao
+      });
+
+      if (error) { erros++; } else { ok++; }
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Importar para o Supabase';
+
+    const erroMsg = erros > 0 ? ' ⚠️ ' + erros + ' linhas com erro (cliente não encontrado ou dados inválidos).' : '';
+    progressMsg.className = erros === 0 ? 'progress-msg ok' : 'progress-msg err';
+    progressMsg.textContent = '✅ ' + ok + ' importados com sucesso.' + erroMsg;
+
+    await carregarTudo();
+  });
+
+  // ── UTILS ──
+  function formatarData(dataStr) {
+    if (!dataStr) return '—';
+    const [ano, mes, dia] = dataStr.split('-');
+    return `${dia}/${mes}/${ano}`;
+  }
+
+  // ── VERIFICAR SESSÃO ──
+  window.addEventListener('load', async () => {
+    const { data: { session } } = await client.auth.getSession();
+    if (session && session.user.email === ADMIN_EMAIL) {
+      iniciarAdmin();
+    }
+  });
+</script>
+</body>
+</html>
