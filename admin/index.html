@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin · Brenda Karolyne</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -462,18 +463,136 @@
     const empty = document.getElementById('emptyComp');
     if (!lista.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
     empty.style.display = 'none';
-    tbody.innerHTML = lista.map(c => `
+    tbody.innerHTML = lista.map((c, i) => `
       <tr>
         <td>${c.clientes?.nome || '—'}</td>
         <td><span class="badge badge-green">${c.clientes?.codigo || '—'}</span></td>
         <td>${c.descricao || '—'}</td>
         <td>${formatarData(c.data_emissao)}</td>
         <td>${c.valor}</td>
-        <td>
+        <td style="display:flex;gap:8px;align-items:center;">
+          <button class="btn-sm" style="background:#dff0e5;color:#3d6b52;" onclick="gerarPDFAdmin('${c.id}')">PDF</button>
           <button class="btn-sm btn-danger" onclick="deletarComprovante('${c.id}')">Remover</button>
         </td>
       </tr>
     `).join('');
+  }
+
+  async function gerarPDFAdmin(compId) {
+    // Buscar dados completos do comprovante + cliente
+    const { data: comp } = await client
+      .from('comprovantes')
+      .select('*, clientes(nome, cpf, codigo)')
+      .eq('id', compId)
+      .limit(1);
+
+    if (!comp || comp.length === 0) { alert('Comprovante não encontrado.'); return; }
+    const c = comp[0];
+    const cliente = c.clientes || {};
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const W = 210, margem = 14, largura = W - (margem * 2);
+
+    // CABEÇALHO
+    doc.setFillColor(61, 107, 82);
+    doc.rect(0, 0, W, 50, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    doc.text('Brenda Karolyne da Silva', margem, 15);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(184, 212, 192);
+    doc.text('Psicóloga  ·  CRP 02/31061  ·  CPF 711.418.924-99', margem, 23);
+    doc.setTextColor(170, 170, 170);
+    doc.setFontSize(8);
+    doc.text('Av. General Mac Arthur, 418 - Sala 804  ·  Imbiribeira, Recife - PE  ·  CEP 51160-280', margem, 31);
+    doc.text('brendakarolyne23@gmail.com', margem, 37);
+
+    // FAIXA
+    doc.setFillColor(184, 212, 192);
+    doc.rect(0, 50, W, 13, 'F');
+    doc.setTextColor(44, 44, 44);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text('RECIBO DE PAGAMENTO', W / 2, 58.5, { align: 'center' });
+
+    // NÚMERO + DATA
+    let y = 76;
+    doc.setFillColor(250, 248, 245); doc.setDrawColor(220, 220, 215);
+    doc.roundedRect(margem, y - 8, largura, 18, 3, 3, 'FD');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(122, 171, 138);
+    doc.text('Nº DO RECIBO', margem + 6, y);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(11); doc.setTextColor(45, 74, 58);
+    doc.text('REC-' + String(todosComprovantes.findIndex(x => x.id === compId) + 1).padStart(4,'0') + '-' + (cliente.codigo || 'BK-000'), margem + 6, y + 7);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(122, 171, 138);
+    doc.text('DATA DE EMISSÃO', W - margem - 55, y);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(11); doc.setTextColor(45, 74, 58);
+    doc.text(formatarData(c.data_emissao), W - margem - 55, y + 7);
+
+    // DADOS CLIENTE
+    y += 28;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(122, 171, 138);
+    doc.text('DADOS DO CLIENTE', margem, y);
+    y += 6;
+    doc.setFillColor(255,255,255); doc.setDrawColor(220,220,215);
+    doc.roundedRect(margem, y - 4, largura, 26, 3, 3, 'FD');
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(150,150,150);
+    doc.text('NOME COMPLETO', margem + 6, y + 4);
+    doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor(45,74,58);
+    doc.text(cliente.nome || '—', margem + 6, y + 11);
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(150,150,150);
+    doc.text('CPF', margem + 6, y + 19);
+    doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(45,74,58);
+    doc.text(cliente.cpf || 'Não informado', margem + 6, y + 25);
+    doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(150,150,150);
+    doc.text('CÓDIGO', margem + 90, y + 19);
+    doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(45,74,58);
+    doc.text(cliente.codigo || '—', margem + 90, y + 25);
+
+    // SERVIÇO
+    y += 36;
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(122,171,138);
+    doc.text('DESCRIÇÃO DO SERVIÇO', margem, y);
+    y += 6;
+    doc.setFillColor(255,255,255); doc.setDrawColor(220,220,215);
+    doc.roundedRect(margem, y - 4, largura, 15, 3, 3, 'FD');
+    doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(45,74,58);
+    doc.text(c.descricao || 'Serviço psicológico', margem + 6, y + 5);
+
+    // VALOR
+    y += 25;
+    doc.setFillColor(61,107,82);
+    doc.roundedRect(margem, y - 4, largura, 22, 3, 3, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(184,212,192);
+    doc.text('VALOR TOTAL PAGO', margem + 6, y + 4);
+    doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(255,255,255);
+    doc.text(c.valor || '—', margem + 6, y + 14);
+
+    // DECLARAÇÃO
+    y += 32;
+    doc.setFillColor(223,240,229); doc.setDrawColor(184,212,192);
+    doc.roundedRect(margem, y - 4, largura, 26, 3, 3, 'FD');
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(60,60,60);
+    const decl = 'Declaro, para os devidos fins, que recebi de ' + (cliente.nome || '—') + ' a importância de ' + (c.valor || '—') + ', referente a ' + (c.descricao || 'serviço psicológico') + ', prestado na data de ' + formatarData(c.data_emissao) + ', quitando integralmente o valor mencionado. Este documento serve como recibo e comprovante de pagamento.';
+    doc.text(doc.splitTextToSize(decl, largura - 12), margem + 6, y + 5);
+
+    // ASSINATURA
+    y += 38;
+    doc.setDrawColor(61,107,82); doc.setLineWidth(0.5);
+    doc.line(W/2 - 50, y, W/2 + 50, y);
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(45,74,58);
+    doc.text('Brenda Karolyne da Silva', W/2, y + 6, { align: 'center' });
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(122,171,138);
+    doc.text('CRP 02/31061  ·  CPF 711.418.924-99', W/2, y + 12, { align: 'center' });
+
+    // RODAPÉ
+    doc.setFillColor(245,245,245); doc.rect(0, 282, W, 15, 'F');
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.5); doc.setTextColor(150,150,150);
+    doc.text('Documento gerado electronicamente em ' + new Date().toLocaleDateString('pt-BR') + '  ·  Av. General Mac Arthur, 418 - Sala 804  ·  Imbiribeira, Recife - PE', W/2, 290, { align: 'center' });
+
+    doc.save('Recibo-' + (cliente.codigo || 'BK') + '-' + c.data_emissao + '.pdf');
   }
 
   // ── BUSCA ──
