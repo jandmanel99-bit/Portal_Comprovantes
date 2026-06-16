@@ -1,0 +1,25 @@
+{
+  "name": "Brenda Karolyne · Admin",
+  "short_name": "BK Admin",
+  "description": "Painel administrativo · Brenda Karolyne Psicóloga",
+  "start_url": "/admin/",
+  "scope": "/admin/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#3d6b52",
+  "theme_color": "#3d6b52",
+  "icons": [
+    {
+      "src": "/admin/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/admin/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
